@@ -1,58 +1,125 @@
-# CakePHP Application Skeleton
+# Weather API – CakePHP
 
-![Build Status](https://github.com/cakephp/app/actions/workflows/ci.yml/badge.svg?branch=5.x)
-[![Total Downloads](https://img.shields.io/packagist/dt/cakephp/app.svg?style=flat-square)](https://packagist.org/packages/cakephp/app)
-[![PHPStan](https://img.shields.io/badge/PHPStan-level%208-brightgreen.svg?style=flat-square)](https://github.com/phpstan/phpstan)
+API REST simples para consulta de clima atual a partir do nome de uma cidade, consumindo um serviço público externo, normalizando o retorno e expondo um contrato JSON padronizado.
 
-A skeleton for creating applications with [CakePHP](https://cakephp.org) 5.x.
+---
 
-The framework source code can be found here: [cakephp/cakephp](https://github.com/cakephp/cakephp).
+## Tecnologias utilizadas
 
-## Installation
+- PHP 8.1+
+- CakePHP 5
+- Composer
+- Open-Meteo API (serviço público de clima)
+- Cache em arquivo (File Cache)
+- Logs nativos do CakePHP
 
-1. Download [Composer](https://getcomposer.org/doc/00-intro.md) or update `composer self-update`.
-2. Run `php composer.phar create-project --prefer-dist cakephp/app [app_name]`.
+---
 
-If Composer is installed globally, run
+## Endpoint
 
-```bash
-composer create-project --prefer-dist cakephp/app
-```
+### GET /api/weather/{cidade}
 
-In case you want to use a custom app dir name (e.g. `/myapp/`):
+Consulta o clima atual de uma cidade informada.
 
-```bash
-composer create-project --prefer-dist cakephp/app myapp
-```
+A cidade pode ser informada com ou sem espaços:
+- /api/weather/Sao%20Paulo
+- /api/weather/Rio-de-Janeiro
 
-You can now either use your machine's webserver to view the default home page, or start
-up the built-in webserver with:
+---
 
-```bash
-bin/cake server -p 8765
-```
+## Exemplo de sucesso
 
-Then visit `http://localhost:8765` to see the welcome page.
+**Request**
+GET /api/weather/Sao%20Paulo
 
-## Demo app
+**Response – 200**
+{
+  "sucesso": true,
+  "dados": {
+    "cidade": "São Paulo",
+    "estado": "São Paulo",
+    "pais": "Brasil",
+    "clima": {
+      "temperatura_c": 27.4,
+      "vento_kmh": 9.8,
+      "hora": "2026-01-10T22:00"
+    },
+    "fonte": "open-meteo",
+    "cache": false
+  },
+  "erro": null
+}
 
-Check out the [5.x-demo branch](https://github.com/cakephp/app/tree/5.x-demo), which contains demo migrations and a seeder.
-See the [README](https://github.com/cakephp/app/blob/5.x-demo/README.md) on how to get it running.
+Quando a mesma cidade é consultada novamente dentro do tempo de cache, o campo "cache" retorna true, indicando que os dados foram obtidos do cache local.
 
-## Update
+---
 
-Since this skeleton is a starting point for your application and various files
-would have been modified as per your needs, there isn't a way to provide
-automated upgrades, so you have to do any updates manually.
+## Possíveis erros
 
-## Configuration
+### Cidade não encontrada (404)
+{
+  "sucesso": false,
+  "dados": null,
+  "erro": {
+    "mensagem": "Cidade não encontrada.",
+    "status": 404
+  }
+}
 
-Read and edit the environment specific `config/app_local.php` and set up the
-`'Datasources'` and any other configuration relevant for your application.
-Other environment agnostic settings can be changed in `config/app.php`.
+### Serviço externo indisponível (503)
+{
+  "sucesso": false,
+  "dados": null,
+  "erro": {
+    "mensagem": "Serviço de clima indisponível.",
+    "status": 503
+  }
+}
 
-## Layout
+### Resposta inválida do serviço externo (502)
+{
+  "sucesso": false,
+  "dados": null,
+  "erro": {
+    "mensagem": "Resposta inválida do serviço de clima.",
+    "status": 502
+  }
+}
 
-The app skeleton uses [Milligram](https://milligram.io/) (v1.3) minimalist CSS
-framework by default. You can, however, replace it with any other library or
-custom styles.
+---
+
+## Arquitetura do projeto
+
+src/
+ ├── Controller/
+ │   └── WeatherController.php
+ │
+ ├── Service/
+ │   ├── WeatherService.php
+ │   ├── Mapper/
+ │   │   └── WeatherResponseMapper.php
+ │   └── Exception/
+ │       ├── CityNotFoundException.php
+ │       ├── UpstreamUnavailableException.php
+ │       └── UpstreamInvalidResponseException.php
+
+---
+
+## Como executar localmente
+
+1. Instalar dependências:
+composer install
+
+2. Subir servidor:
+php bin/cake.php server
+
+3. Acessar:
+http://localhost:8765/api/weather/Sao%20Paulo
+
+---
+
+## Observações
+
+- O projeto utiliza cache de 10 minutos para evitar chamadas repetidas à API externa.
+- Logs de falhas e exceções são registrados utilizando o sistema de logs do CakePHP.
+- O arquivo config/app_local.php não deve ser versionado, pois contém configurações locais e sensíveis.
